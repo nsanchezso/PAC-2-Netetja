@@ -1,0 +1,287 @@
+---
+title: 'Neteja i anàlisis de les dades'
+author: "Autor: Noé Sanchez Soldevila, Gemma Garcia de la Fuente"
+date: "Desembre 2019"
+output:
+  html_document:
+    highlight: default
+    number_sections: yes
+    theme: cosmo
+    toc: yes
+    toc_depth: 2
+    includes:
+      in_header: 
+  word_document: default
+  pdf_document:
+    highlight: zenburn
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+```
+
+
+# Introducció
+
+Les dades que utilitzarem per a la segona pràctica de l'assignatura: Tipologia i cicle de vida de les dades, son les dades del dataset Titanic de Kaggle (https://www.kaggle.com/c/titanic/data)
+
+
+
+```{r}
+# Carreguem els paquets R que utilitzarem
+library(ggplot2)
+library(dplyr)
+```
+
+
+# Descripció del dataset. 
+
+Perquè és important i quina pregunta/problema pretén respondre?
+
+
+El data set recull un conjunt de variables referents als passatgers del titanic, a continuació podem veure 
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+# Guardem el joc de dades test i train en un únic dataset
+test <- read.csv('titanic-test.csv',stringsAsFactors = FALSE)
+train <- read.csv('titanic-train.csv', stringsAsFactors = FALSE)
+
+# Unim els dos jocs de dades en un només
+dd <- bind_rows(train,test)
+filas=dim(train)[1]
+
+# Verifiquem l'estructura del joc de dades
+pander::pander(str(dd))
+```
+
+Veiem que tenim un total de 12 variables, aquestes tenen diferents formats: enters, numèrics i caràcter. Les variables codificades om enteres algunes en realitat representen factors, aplicarem les transformacions necessàries perquè cada variable pugui ser analitzada de la forma més adient:
+
+```{r}
+dd$Survived <- as.factor(dd$Survived)
+dd$Pclass <- as.factor(dd$Pclass)
+dd$Sex <- as.factor(dd$Sex)
+dd$SibSp <- as.factor(dd$SibSp)
+dd$Parch <- as.factor(dd$Parch)
+dd$Embarked <- as.factor(dd$Embarked)
+```
+
+
+# Integració i selecció de les dades d’interès a analitzar.
+
+Al ser una base de dades no molt amplia decidim mantenir tots els atributs disponibles
+
+# Neteja de les dades.
+
+En primer lloc mirem si tenim alguna variable amb valors mancants:
+
+```{r}
+colSums(is.na(dd))
+colSums(dd=="")
+```
+
+Veiem que la variable Age, Embarked, Fare, Syrvived tenen valors mancants. A continuació analitzem cada cas particular per estudiar quin tipus d'imputació és més apropiat.
+
+* Variable Embarked: decidim que omplirem els valors missings amb el valor de moda que pren la variable, per fer-ho mirem les freqüències de cada categoria i assignem aquell valor als missings:
+
+```{r}
+table(dd$Embarked)
+# Prenem valor "C" per als valors buits de la variable "Embarked"
+dd$Embarked[dd$Embarked==""]="C"
+```
+
+
+* Variable Age: seguint la mateixa estratègia assignem el valor de la mitjana als valors mancants d'aquesta variable:
+
+
+```{r}
+# Prenem la mitjana  "Age"
+dd$Age[is.na(dd$Age)] <- mean(dd$Age,na.rm=T)
+```
+
+
+* Vairbale Syrvived: aquesta variable ens indica els subjectes que sabem que han sobreviscut, al ser una variable que només és recollia en les dades de train, tots els valors mancants representen subjectes morts
+
+## Identificació i tractament de valors extrems.
+
+En aquesta secció analitzem la presència de valors extrems, per fer-ho primer fem una representació gràfica mitjançant un boxplot de les variables numèriques.
+
+* AGE
+
+```{r ,echo=FALSE,  out.width = "70%", fig.align="center"}
+boxplot(dd$Age, main="Edat", col="pink")
+```
+
+Podem veure clarament la presència de varius punts fora de la caixa, aquests serien considerats valors atípics. En aquest cas no es pot aplicar cap transofrmacio, ja que no és traca de valors entrats malament, ni de mal codificats, encara que hi hagues poques persones amb edats superiors als 80 anys, la presència d'aquest era probable així que no fem res amb els valors atípics d'aquesta variable.
+
+* FARE       
+
+```{r ,echo=FALSE,  out.width = "70%", fig.align="center"}
+boxplot(dd$Fare, main="Fare", col="pink")
+```
+
+Amb la representació gràfica veiem que hi ha clarament un valor que sí que hauríem de considerar com anòmal. L'eliminem el valor que realment es veu lluny en el gràfic:
+
+```{r}
+# boxplot.stats(dd$Fare)$out
+#Falta codi 
+```
+
+
+
+
+# Anàlisi de les dades.
+
+## Selecció dels grups 
+
+Seleccionem dos grups per a ser analitzat, la partició la fem en funció de si sobreviuen o no:
+
+```{r}
+viu <- dd[dd$Survived == 1 ,]
+mort <- dd[dd$Survived == 0,]
+```
+
+
+Fem una breu descripció gràfica bivariant amb la variable "survival" en enfront de algunes altres:
+
+* Visualitzem la relació entre les variables "sex" i "survival":
+
+```{r ,echo=FALSE,  out.width = "70%", fig.align="center"}
+ggplot(data=dd[1:filas,],aes(x=Sex,fill=Survived))+geom_bar()
+```
+
+
+* Survival com a funció de Embarked:
+
+```{r ,echo=FALSE,  out.width = "70%", fig.align="center"}
+ggplot(data = dd[1:filas,],aes(x=Embarked,fill=Survived))+geom_bar(position="fill")+ylab("Frequència")
+
+```
+
+Obtenim una matriu de percentatges de freqüència.
+Veiem, per exemple que la probabilitat de sobreviure si es va embarcar en "C" és d'un 55,88%
+
+
+
+## Comprovació de la normalitat i homogeneïtat de la variància.
+
+Per analitzar la normalitat de les dades tenim diversos test estadístics els quals busquen respondre el següent contrast d'hipòtesis:
+
+Ho: normalitat
+H1: no normalitat
+
+
+```{r}
+
+alpha = 0.05
+col.names = colnames(dd)
+for (i in 1:ncol(dd)) {
+  if (i == 1) cat("Variables NO normals:\n")
+    if (is.integer(dd[,i]) | is.numeric(dd[,i])) {
+      p_val = shapiro.test(dd[,i])$p.value
+        if (p_val < alpha) {
+            cat(col.names[i])
+
+# Format output
+if (i < ncol(dd) - 1) cat(", ")
+    if (i %% 3 == 0) cat("\n")
+      }
+  }
+}
+```
+
+
+Pel que fa a la homogeneitat de la variància:
+
+Ho: hi ha homogeneïtat de variàncies
+H1: les variables són heteroblàstiques
+
+Apliquem aquest test per a les variables numèriques, indicant que els grups que volem testar són els de la variables sobrevivència:
+
+* Age:
+
+```{r}
+library(car)
+leveneTest(dd$Age,dd$Survived)  
+```
+
+Amb el p-valor >; 0.05 viem que no tenim raons per rebutjar la hipòtesis nul·la i per tant considerem que la variància del grup de gent que va morir és igual a la de grup de gent que va sobreviure.
+
+* Age:
+
+```{r}
+library(car)
+leveneTest(dd$Fare,dd$Survived)  
+```
+
+Amb el p-valor < 0.05 rebutgem la hipòtesi nul·la i per tant direm que no hi ha homogeneïtat de variàncies entre el grup de supervivents i els que moren en funció de la tarifa que van pagar.
+
+
+
+## Aplicació de proves estadístiques 
+
+Fem un primer anàlisis de correlacions per veure quines variables tenen mes influencia sobre la supervivència dels passatgers, hi ha variables que no podem considerar normals per tant utilitzarem la correlació de Spearman:
+
+```{r}
+corr_matrix <- matrix(nc = 2, nr = 0)
+colnames(corr_matrix) <- c("estimate", "p-value")
+# Calcular el coeficiente de correlación para cada variable cuantitativa
+# con respecto al campo "precio"
+for (i in 1:(ncol(dd) - 1)) {
+  if (is.numeric(dd[,i])) {
+   # spearman_test = cor.test(dd[,i], dd[,length(dd)], method = "spearman")
+   # corr_coef = spearman_test$estimate
+   # p_val = spearman_test$p.value
+    # Add row to matrix
+   # pair = matrix(ncol = 2, nrow = 1)
+   # pair[1][1] = corr_coef
+   # pair[2][1] = p_val
+   # corr_matrix <- rbind(corr_matrix, pair)
+   # rownames(corr_matrix)[nrow(corr_matrix)] <- colnames(automoviles)[i]
+  }
+}
+```
+
+
+Farem una comparacio de mitjanes per comprovar si els dos grups definits son o no diferents:
+
+* Edat, en aquest cas teniem homogeneitat de variancies per tant podem indiarho en el test, a més a més les dades no eren normals per tant hem d'aplicar un test no parametric: Wilcoxon Rank sum Test. El contrast:
+
+H0: igualtat de mitjanes
+m1: mitjanes diferents
+
+```{r}
+wilcox.test(viu$Age,mort$Age)
+```
+
+com que el p-valor és molt elevat direm que ambdos grups tenen mitjanes que es poden considerar iguals. 
+
+
+* Preu tiquet, la variable tampoc es considerava normal per tant apliquem el mateix test, i el mateix contrast:
+
+```{r}
+wilcox.test(viu$Fare,mort$Fare)
+```
+
+En aquest cas les mitjanes d'ambdos grups no es poden considerar iguals, de fet si mirem una descrivtiva bivariant veurem que els que sovreviuen pagaven tarifes més altres:
+
+```{r}
+boxplot(Fare~Survived,data=dd, main="Supervivencia en funcio del tiket", col="pink")
+```
+
+
+Veiem en aquets boxplots que la poblacio que sovreviu (1) són gent que va pagar un preu més elevat.  
+
+
+
+# Representació dels resultats a partir de taules i gràfiques.
+
+Falta per fer
+
+# Resolució del problema. 
+
+A partir dels resultats obtinguts, quines són les conclusions? Els resultats permeten respondre al problema?
+
+
+
+
