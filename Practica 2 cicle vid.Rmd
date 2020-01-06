@@ -32,6 +32,7 @@ Les dades que utilitzarem per a la segona pràctica de l'assignatura: Tipologia 
 # Carreguem els paquets R que utilitzarem
 library(ggplot2)
 library(dplyr)
+library(missForest)
 ```
 
 
@@ -46,26 +47,26 @@ El data set recull un conjunt de variables referents als passatgers del titanic,
 # Guardem el joc de dades test i train en un únic dataset
 test <- read.csv('titanic-test.csv',stringsAsFactors = FALSE)
 train <- read.csv('titanic-train.csv', stringsAsFactors = FALSE)
-
 # Unim els dos jocs de dades en un només
-dd <- bind_rows(train,test)
-filas=dim(train)[1]
 
 # Verifiquem l'estructura del joc de dades
-pander::pander(str(dd))
+pander::pander(str(train))
 ```
 
 Veiem que tenim un total de 12 variables, aquestes tenen diferents formats: enters, numèrics i caràcter. Les variables codificades om enteres algunes en realitat representen factors, aplicarem les transformacions necessàries perquè cada variable pugui ser analitzada de la forma més adient:
 
 ```{r}
-dd$Survived <- as.factor(dd$Survived)
-dd$Pclass <- as.factor(dd$Pclass)
-dd$Sex <- as.factor(dd$Sex)
-dd$SibSp <- as.factor(dd$SibSp)
-dd$Parch <- as.factor(dd$Parch)
-dd$Embarked <- as.factor(dd$Embarked)
+train$Survived <- as.factor(train$Survived)
+train$Pclass <- as.factor(train$Pclass)
+train$Sex <- as.factor(train$Sex)
+train$SibSp <- as.factor(train$SibSp)
+train$Parch <- as.factor(train$Parch)
+train$Embarked <- as.factor(train$Embarked)
+
+summary(train)
 ```
 
+Podem comprobar els diferents valors estadístics de les variables contínues i els recomtes dels valors categórics, a més de la quantitat de valors nulls que conté cada variable. Trobem valors nuls en la variable objectiu, Survived, pel que a continuació haurem d'eliminar-los del nostre anàlisi.
 
 # Integració i selecció de les dades d’interès a analitzar.
 
@@ -76,8 +77,8 @@ Al ser una base de dades no molt amplia decidim mantenir tots els atributs dispo
 En primer lloc mirem si tenim alguna variable amb valors mancants:
 
 ```{r}
-colSums(is.na(dd))
-colSums(dd=="")
+colSums(is.na(train))
+colSums(train=="")
 ```
 
 Veiem que la variable Age, Embarked, Fare, Syrvived tenen valors mancants. A continuació analitzem cada cas particular per estudiar quin tipus d'imputació és més apropiat.
@@ -85,9 +86,9 @@ Veiem que la variable Age, Embarked, Fare, Syrvived tenen valors mancants. A con
 * Variable Embarked: decidim que omplirem els valors missings amb el valor de moda que pren la variable, per fer-ho mirem les freqüències de cada categoria i assignem aquell valor als missings:
 
 ```{r}
-table(dd$Embarked)
+table(train$Embarked)
 # Prenem valor "C" per als valors buits de la variable "Embarked"
-dd$Embarked[dd$Embarked==""]="C"
+train$Embarked[train$Embarked==""]="C"
 ```
 
 
@@ -95,12 +96,16 @@ dd$Embarked[dd$Embarked==""]="C"
 
 
 ```{r}
+
 # Prenem la mitjana  "Age"
-dd$Age[is.na(dd$Age)] <- mean(dd$Age,na.rm=T)
+Age = train$Age
+exe <- missForest(Age)
+#Age
+#dd$Age[is.na(dd$Age)] <- mean(dd$Age,na.rm=T)
 ```
 
 
-* Vairbale Syrvived: aquesta variable ens indica els subjectes que sabem que han sobreviscut, al ser una variable que només és recollia en les dades de train, tots els valors mancants representen subjectes morts
+* Variable : 
 
 ## Identificació i tractament de valors extrems.
 
@@ -109,7 +114,7 @@ En aquesta secció analitzem la presència de valors extrems, per fer-ho primer 
 * AGE
 
 ```{r ,echo=FALSE,  out.width = "70%", fig.align="center"}
-boxplot(dd$Age, main="Edat", col="pink")
+boxplot(train$Age, main="Edat", col="pink")
 ```
 
 Podem veure clarament la presència de varius punts fora de la caixa, aquests serien considerats valors atípics. En aquest cas no es pot aplicar cap transofrmacio, ja que no és traca de valors entrats malament, ni de mal codificats, encara que hi hagues poques persones amb edats superiors als 80 anys, la presència d'aquest era probable així que no fem res amb els valors atípics d'aquesta variable.
@@ -117,17 +122,10 @@ Podem veure clarament la presència de varius punts fora de la caixa, aquests se
 * FARE       
 
 ```{r ,echo=FALSE,  out.width = "70%", fig.align="center"}
-boxplot(dd$Fare, main="Fare", col="pink")
+boxplot(train$Fare, main="Fare", col="pink")
 ```
 
-Amb la representació gràfica veiem que hi ha clarament un valor que sí que hauríem de considerar com anòmal. L'eliminem el valor que realment es veu lluny en el gràfic:
-
-```{r}
-# boxplot.stats(dd$Fare)$out
-#Falta codi 
-```
-
-
+Amb la representació gràfica veiem que hi ha clarament un valor que sí que hauríem de considerar com anòmal. Aquest valor, molt fora de la resta, podría tractar-se d'un outlier. Encara així, el mantindrem, ja que el valor no manté tanta diferència amb el grup de valors superiors, i es podría tractar d'una taxa molt superior a la resta per la seua exclusivitat.
 
 
 # Anàlisi de les dades.
@@ -137,8 +135,8 @@ Amb la representació gràfica veiem que hi ha clarament un valor que sí que ha
 Seleccionem dos grups per a ser analitzat, la partició la fem en funció de si sobreviuen o no:
 
 ```{r}
-viu <- dd[dd$Survived == 1 ,]
-mort <- dd[dd$Survived == 0,]
+viu <- train[train$Survived == 1 ,]
+mort <- train[train$Survived == 0,]
 ```
 
 
@@ -147,19 +145,26 @@ Fem una breu descripció gràfica bivariant amb la variable "survival" en enfron
 * Visualitzem la relació entre les variables "sex" i "survival":
 
 ```{r ,echo=FALSE,  out.width = "70%", fig.align="center"}
-ggplot(data=dd[1:filas,],aes(x=Sex,fill=Survived))+geom_bar()
+ggplot(data=train[1:filas,],aes(x=Sex,fill=Survived))+geom_bar()
 ```
 
 
 * Survival com a funció de Embarked:
 
 ```{r ,echo=FALSE,  out.width = "70%", fig.align="center"}
-ggplot(data = dd[1:filas,],aes(x=Embarked,fill=Survived))+geom_bar(position="fill")+ylab("Frequència")
-
+ggplot(data = train[1:filas,],aes(x=Embarked,fill=Survived))+geom_bar(position="fill")+ylab("Frequència")
 ```
 
 Obtenim una matriu de percentatges de freqüència.
 Veiem, per exemple que la probabilitat de sobreviure si es va embarcar en "C" és d'un 55,88%
+
+
+* Survival com a funció de clase:
+
+```{r ,echo=FALSE,  out.width = "70%", fig.align="center"}
+ggplot(data = train[1:filas,],aes(x=Pclass,fill=Survived))+geom_bar(position="fill")+ylab("Frequència")
+```
+
 
 
 
@@ -172,18 +177,16 @@ H1: no normalitat
 
 
 ```{r}
-
 alpha = 0.05
-col.names = colnames(dd)
-for (i in 1:ncol(dd)) {
-  if (i == 1) cat("Variables NO normals:\n")
-    if (is.integer(dd[,i]) | is.numeric(dd[,i])) {
-      p_val = shapiro.test(dd[,i])$p.value
+col.names = colnames(train)
+for (i in 2:ncol(train)) {
+  if (i == 2) cat("Variables NO normals:\n")
+    if (is.integer(train[,i]) | is.numeric(train[,i])) {
+      p_val = shapiro.test(train[,i])$p.value
         if (p_val < alpha) {
             cat(col.names[i])
-
 # Format output
-if (i < ncol(dd) - 1) cat(", ")
+if (i < ncol(train) - 1) cat(", ")
     if (i %% 3 == 0) cat("\n")
       }
   }
@@ -202,16 +205,16 @@ Apliquem aquest test per a les variables numèriques, indicant que els grups que
 
 ```{r}
 library(car)
-leveneTest(dd$Age,dd$Survived)  
+leveneTest(train$Age,train$Survived)  
 ```
 
 Amb el p-valor >; 0.05 viem que no tenim raons per rebutjar la hipòtesis nul·la i per tant considerem que la variància del grup de gent que va morir és igual a la de grup de gent que va sobreviure.
 
-* Age:
+* Fare:
 
 ```{r}
 library(car)
-leveneTest(dd$Fare,dd$Survived)  
+leveneTest(train$Fare,train$Survived)  
 ```
 
 Amb el p-valor < 0.05 rebutgem la hipòtesi nul·la i per tant direm que no hi ha homogeneïtat de variàncies entre el grup de supervivents i els que moren en funció de la tarifa que van pagar.
@@ -227,8 +230,8 @@ corr_matrix <- matrix(nc = 2, nr = 0)
 colnames(corr_matrix) <- c("estimate", "p-value")
 # Calcular el coeficiente de correlación para cada variable cuantitativa
 # con respecto al campo "precio"
-for (i in 1:(ncol(dd) - 1)) {
-  if (is.numeric(dd[,i])) {
+for (i in 1:(ncol(train) - 1)) {
+  if (is.numeric(train[,i])) {
    # spearman_test = cor.test(dd[,i], dd[,length(dd)], method = "spearman")
    # corr_coef = spearman_test$estimate
    # p_val = spearman_test$p.value
@@ -266,13 +269,69 @@ wilcox.test(viu$Fare,mort$Fare)
 En aquest cas les mitjanes d'ambdos grups no es poden considerar iguals, de fet si mirem una descrivtiva bivariant veurem que els que sovreviuen pagaven tarifes més altres:
 
 ```{r}
-boxplot(Fare~Survived,data=dd, main="Supervivencia en funcio del tiket", col="pink")
+boxplot(Fare~Survived,data=train, main="Supervivencia en funcio del tiket", col="pink")
 ```
 
 
 Veiem en aquets boxplots que la poblacio que sovreviu (1) són gent que va pagar un preu més elevat.  
 
+També podem fer les mateixes proves per variables categóriques del dataset:
 
+En aquest cas:
+
+H0: Les variables no tenen un efecte significatiu en el resultat.
+H1: Les variables sí el tenen.
+
+* Comparem la supervivència amb el sexe:
+```{r}
+chisq.test(train$Survived, train$Sex)
+```
+
+Podem observar, amb un p valor molt inferior a 0.05, que el sexe va tenir una gran influència en la supervivència dels individus.
+
+* Comparem la supervivència amb la classe:
+```{r}
+chisq.test(train$Survived, train$Pclass)
+```
+
+També comprovem que la variable classe està molt relacionada amb la supervivència dels individus.
+
+* Comparem la supervivència amb embarked:
+```{r}
+chisq.test(train$Survived, train$Embarked)
+``` 
+
+També comprovem que la variable classe està molt relacionada amb la supervivència dels individus.
+
+* Comparem la supervivència amb embarked:
+```{r}
+chisq.test(train$Survived, train$SibSp)
+``` 
+
+També comprovem que la variable classe està molt relacionada amb la supervivència dels individus.
+
+* Comparem la supervivència amb embarked:
+```{r}
+chisq.test(train$Survived, train$Parch)
+``` 
+
+També comprovem que la variable Parch està molt relacionada amb la supervivència dels individus.
+
+Així, hem comprovat que totes les variables categòriques están molt relacionades amb la supervivència de l'individu.
+
+Per últim, generarem un model per tal de predir els futurs resultats de supervivència per altres mostres amb els mateixos atributs:
+
+```{r}
+library(randomForest)
+
+modelo <- randomForest(as.factor(Survived) ~ Pclass + Sex + Age + SibSp + Parch + Fare +
+                                            Embarked + Cabin,
+                      data=train, 
+                      importance=TRUE, 
+                      ntree=2000)
+
+modelo
+``` 
 
 # Representació dels resultats a partir de taules i gràfiques.
 
@@ -281,7 +340,3 @@ Falta per fer
 # Resolució del problema. 
 
 A partir dels resultats obtinguts, quines són les conclusions? Els resultats permeten respondre al problema?
-
-
-
-
