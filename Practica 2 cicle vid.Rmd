@@ -10,7 +10,7 @@ output:
     toc: yes
     toc_depth: 2
     includes:
-      in_header: 
+      in_header:
   word_document: default
   pdf_document:
     highlight: zenburn
@@ -24,9 +24,9 @@ knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 
 # Introducció
 
-Les dades que utilitzarem per a la segona pràctica de l'assignatura: Tipologia i cicle de vida de les dades, son les dades del dataset Titanic de Kaggle (https://www.kaggle.com/c/titanic/data).
+Les dades que utilitzarem per a la segona pràctica de l'assignatura: Tipologia i cicle de vida de les dades, són les dades del dataset Titanic de Kaggle (https://www.kaggle.com/c/titanic/data).
 
-L'objectiu del present treball serà la netetja i l'anàlisi del dataset per arribar a conclusions sobre la influència de les diferents característiques descrites en ell sobre la supervivència dels individus en l'accident del Titànic, així com la creació d'un model predictiu que en base a aquestes característiques sigui capaç de preveure si l'individu sobreviuría o no a l'accident.
+L'objectiu del present treball serà la neteja i l'anàlisi del dataset per arribar a conclusions sobre la influència de les diferents característiques descrites en ell sobre la supervivència dels individus en l'accident del Titànic, així com la creació d'un model predictiu que d'acord amb aquestes característiques sigui capaç de preveure si l'individu sobreviuria o no a l'accident.
 
 
 ```{r}
@@ -34,22 +34,21 @@ L'objectiu del present treball serà la netetja i l'anàlisi del dataset per arr
 library(ggplot2)
 library(dplyr)
 library(missForest)
+library(mice)
 ```
 
 
-# Descripció del dataset. 
+# Descripció del dataset.
 
 Perquè és important i quina pregunta/problema pretén respondre?
 
-
-El data set recull un conjunt de variables referents als passatgers del titanic, a continuació podem veure 
+El data set recull un conjunt de variables referents als passatgers del titànic, a continuació podem veure
 
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 # Guardem el joc de dades test i train en un únic dataset
 test <- read.csv('titanic-test.csv',stringsAsFactors = FALSE)
 train <- read.csv('titanic-train.csv', stringsAsFactors = FALSE)
 # Unim els dos jocs de dades en un només
-
 # Verifiquem l'estructura del joc de dades
 pander::pander(str(train))
 ```
@@ -63,15 +62,14 @@ train$Sex <- as.factor(train$Sex)
 train$SibSp <- as.factor(train$SibSp)
 train$Parch <- as.factor(train$Parch)
 train$Embarked <- as.factor(train$Embarked)
-
 summary(train)
 ```
 
-Podem comprobar els diferents valors estadístics de les variables contínues i els recomtes dels valors categórics, a més de la quantitat de valors nulls que conté cada variable. Trobem valors nuls en la variable objectiu, Survived, pel que a continuació haurem d'eliminar-los del nostre anàlisi.
+Podem comprovar els diferents valors estadístics de les variables contínues i els recomptes dels valors categòrics, a més de la quantitat de valors nuls que conté cada variable. Trobem valors nuls en la variable objectiu, Survived, pel que a continuació haurem d'eliminar-los dela nostra anàlisi.
 
 # Integració i selecció de les dades d’interès a analitzar.
 
-Al ser una base de dades no molt amplia decidim mantenir tots els atributs disponibles
+En ser una base de dades no molt amplia, decidim mantenir tots els atributs disponibles. La variable resposta la qual volem intentar predir amb les anàlisis és la variable Survived, així doncs el que volem semblar és si amb les altres variables som capaços de predir la supervivència dels subjectes.
 
 # Neteja de les dades.
 
@@ -79,34 +77,25 @@ En primer lloc mirem si tenim alguna variable amb valors mancants:
 
 ```{r}
 colSums(is.na(train))
-colSums(train=="")
 ```
 
-Veiem que la variable Age, Embarked, Fare, Syrvived tenen valors mancants. A continuació analitzem cada cas particular per estudiar quin tipus d'imputació és més apropiat.
+Veiem que la variable Agete valors mancants. L'únic que considerem necessari respecte la depuració de dades és tractar amb els valors mancants, ja que això pot influir en la nostra anàlisi. Per fer-ho adoptem dos criteris diferents en funció de si el valor mancant està en la variable resposta o la variable explicativa.
 
-* Variable Embarked: decidim que omplirem els valors missings amb el valor de moda que pren la variable, per fer-ho mirem les freqüències de cada categoria i assignem aquell valor als missings:
+* Variable Survived és la variable resposta, si hi hagues missings, no els tractaríem, eliminem tupla.
+
+* Missings vairbales explicatives: com sabem els missings poden tenir diversos orígens. En aquest cas considerem que es tracte d'un cas MAR: valors mancants que depenen de coses que hem observat. Per tant aplicarem la tècnica de Múltiple imputació a través de la funció `mice()`
 
 ```{r}
-table(train$Embarked)
-# Prenem valor "C" per als valors buits de la variable "Embarked"
+train<- mice(train)
+train <- complete(train)
+
+```
+
+*Embarked: Omplim la variable Embarked amb el valor C
+```{r}
 train$Embarked[train$Embarked==""]="C"
 ```
 
-
-* Variable Age: seguint la mateixa estratègia assignem el valor de la mitjana als valors mancants d'aquesta variable:
-
-
-```{r}
-
-# Prenem la mitjana  "Age"
-Age = train$Age
-exe <- missForest(Age)
-#Age
-#dd$Age[is.na(dd$Age)] <- mean(dd$Age,na.rm=T)
-```
-
-
-* Variable : 
 
 ## Identificació i tractament de valors extrems.
 
@@ -118,20 +107,20 @@ En aquesta secció analitzem la presència de valors extrems, per fer-ho primer 
 boxplot(train$Age, main="Edat", col="pink")
 ```
 
-Podem veure clarament la presència de varius punts fora de la caixa, aquests serien considerats valors atípics. En aquest cas no es pot aplicar cap transofrmacio, ja que no és traca de valors entrats malament, ni de mal codificats, encara que hi hagues poques persones amb edats superiors als 80 anys, la presència d'aquest era probable així que no fem res amb els valors atípics d'aquesta variable.
+Podem veure clarament la presència de varius punts fora de la caixa, aquests serien considerats valors atípics. En aquest cas no es pot aplicar cap transformació, ja que no és traca de valors entrats malament, ni de mal codificats, encara que hi hagues poques persones amb edats superiors als 80 anys, la presència d'aquest era probable així que no fem res amb els valors atípics d'aquesta variable.
 
-* FARE       
+* FARE      
 
 ```{r ,echo=FALSE,  out.width = "70%", fig.align="center"}
 boxplot(train$Fare, main="Fare", col="pink")
 ```
 
-Amb la representació gràfica veiem que hi ha clarament un valor que sí que hauríem de considerar com anòmal. Aquest valor, molt fora de la resta, podría tractar-se d'un outlier. Encara així, el mantindrem, ja que el valor no manté tanta diferència amb el grup de valors superiors, i es podría tractar d'una taxa molt superior a la resta per la seua exclusivitat.
+Amb la representació gràfica veiem que hi ha clarament un valor que sí que hauríem de considerar com anòmal. Aquest valor, molt fora de la resta, podria tractar-se d'un outlier. Encara així, el mantindrem, ja que el valor no manté tanta diferència amb el grup de valors superiors, i és podria tractar d'una taxa molt superior a la resta per la seva exclusivitat.
 
 
 # Anàlisi de les dades.
 
-## Selecció dels grups 
+## Selecció dels grups
 
 Seleccionem dos grups per a ser analitzat, la partició la fem en funció de si sobreviuen o no:
 
@@ -146,6 +135,7 @@ Fem una breu descripció gràfica bivariant amb la variable "survival" en enfron
 * Visualitzem la relació entre les variables "sex" i "survival":
 
 ```{r ,echo=FALSE,  out.width = "70%", fig.align="center"}
+filas=dim(train)[1]
 ggplot(data=train[1:filas,],aes(x=Sex,fill=Survived))+geom_bar()
 ```
 
@@ -167,11 +157,21 @@ ggplot(data = train[1:filas,],aes(x=Pclass,fill=Survived))+geom_bar(position="fi
 ```
 
 
+Sembla que sovreviuen més els Subejctes de primera classe.
 
+
+*  suopervivencia en funció del nombre de germans
+
+```{r}
+ggplot(data = train[1:filas,],aes(x=SibSp,fill=Survived))+geom_bar(position="fill")+ylab("Frequència")
+```
+
+
+Tot i que es curios com a relació semblaria que a ménys germans més possibilitats de sobreviure.
 
 ## Comprovació de la normalitat i homogeneïtat de la variància.
 
-Per analitzar la normalitat de les dades tenim diversos test estadístics els quals busquen respondre el següent contrast d'hipòtesis:
+Per analitzar la normalitat de les dades tenim diversos testos estadístics els quals busquen respondre el següent contrast d'hipòtesis:
 
 Ho: normalitat
 H1: no normalitat
@@ -195,12 +195,13 @@ if (i < ncol(train) - 1) cat(", ")
 ```
 
 
+
 Pel que fa a la homogeneitat de la variància:
 
 Ho: hi ha homogeneïtat de variàncies
 H1: les variables són heteroblàstiques
 
-Apliquem aquest test per a les variables numèriques, indicant que els grups que volem testar són els de la variables sobrevivència:
+Apliquem aquest test per a les variables numèriques, indicant que els grups que volem testar són els de la variables sobre vivència:
 
 * Age:
 
@@ -209,7 +210,7 @@ library(car)
 leveneTest(train$Age,train$Survived)  
 ```
 
-Amb el p-valor >; 0.05 viem que no tenim raons per rebutjar la hipòtesis nul·la i per tant considerem que la variància del grup de gent que va morir és igual a la de grup de gent que va sobreviure.
+Amb el p-valor > 0.05 viem que no tenim raons per rebutjar la hipòtesi nul·la i per tant considerem que la variància del grup de gent que va morir és igual a la de grup de gent que va sobreviure.
 
 * Fare:
 
@@ -222,34 +223,12 @@ Amb el p-valor < 0.05 rebutgem la hipòtesi nul·la i per tant direm que no hi h
 
 
 
-## Aplicació de proves estadístiques 
-
-Fem un primer anàlisis de correlacions per veure quines variables tenen mes influencia sobre la supervivència dels passatgers, hi ha variables que no podem considerar normals per tant utilitzarem la correlació de Spearman:
-
-```{r}
-corr_matrix <- matrix(nc = 2, nr = 0)
-colnames(corr_matrix) <- c("estimate", "p-value")
-# Calcular el coeficiente de correlación para cada variable cuantitativa
-# con respecto al campo "precio"
-for (i in 1:(ncol(train) - 1)) {
-  if (is.numeric(train[,i])) {
-   # spearman_test = cor.test(dd[,i], dd[,length(dd)], method = "spearman")
-   # corr_coef = spearman_test$estimate
-   # p_val = spearman_test$p.value
-    # Add row to matrix
-   # pair = matrix(ncol = 2, nrow = 1)
-   # pair[1][1] = corr_coef
-   # pair[2][1] = p_val
-   # corr_matrix <- rbind(corr_matrix, pair)
-   # rownames(corr_matrix)[nrow(corr_matrix)] <- colnames(automoviles)[i]
-  }
-}
-```
+## Aplicació de proves estadístiques
 
 
-Farem una comparacio de mitjanes per comprovar si els dos grups definits son o no diferents:
+Farem una comparació de mitjanes per comprovar si els dos grups definits són o no diferents:
 
-* Edat, en aquest cas teniem homogeneitat de variancies per tant podem indiarho en el test, a més a més les dades no eren normals per tant hem d'aplicar un test no parametric: Wilcoxon Rank sum Test. El contrast:
+* Edat, en aquest cas teníem homogeneïtat de variàncies per tant podem indicar-ho en el test, a més a més les dades no eren normals per tant hem d'aplicar un test no paramètric: Wilcoxon Rank sum Test. El contrast:
 
 H0: igualtat de mitjanes
 m1: mitjanes diferents
@@ -258,8 +237,7 @@ m1: mitjanes diferents
 wilcox.test(viu$Age,mort$Age)
 ```
 
-com que el p-valor és molt elevat direm que ambdos grups tenen mitjanes que es poden considerar iguals. 
-
+Com que el p-valor és molt elevat direm que ambdós grups tenen mitjanes que es poden considerar iguals.
 
 * Preu tiquet, la variable tampoc es considerava normal per tant apliquem el mateix test, i el mateix contrast:
 
@@ -267,14 +245,14 @@ com que el p-valor és molt elevat direm que ambdos grups tenen mitjanes que es 
 wilcox.test(viu$Fare,mort$Fare)
 ```
 
-En aquest cas les mitjanes d'ambdos grups no es poden considerar iguals, de fet si mirem una descrivtiva bivariant veurem que els que sovreviuen pagaven tarifes més altres:
+En aquest cas les mitjanes d'ambdós grups no es poden considerar iguals, de fet si mirem una descriptiva bivariant, veurem que els que sobreviuen pagaven tarifes més altres:
 
 ```{r}
 boxplot(Fare~Survived,data=train, main="Supervivencia en funcio del tiket", col="pink")
 ```
 
 
-Veiem en aquets boxplots que la poblacio que sovreviu (1) són gent que va pagar un preu més elevat.  
+Veiem en aquests boxplots que la població que sobreviu (1) són gent que va pagar un preu més elevat.  
 
 També podem fer les mateixes proves per variables categóriques del dataset:
 
@@ -300,21 +278,16 @@ També comprovem que la variable classe està molt relacionada amb la supervivè
 * Comparem la supervivència amb embarked:
 ```{r}
 chisq.test(train$Survived, train$Embarked)
-``` 
+```
 
-També comprovem que la variable classe està molt relacionada amb la supervivència dels individus.
+També comprovem que la variable Embarked està molt relacionada amb la supervivència dels individus.
 
-* Comparem la supervivència amb embarked:
-```{r}
-chisq.test(train$Survived, train$SibSp)
-``` 
 
-També comprovem que la variable classe està molt relacionada amb la supervivència dels individus.
 
-* Comparem la supervivència amb embarked:
+* Comparem la supervivència amb Parch:
 ```{r}
 chisq.test(train$Survived, train$Parch)
-``` 
+```
 
 També comprovem que la variable Parch està molt relacionada amb la supervivència dels individus.
 
@@ -322,22 +295,38 @@ Així, hem comprovat que totes les variables categòriques están molt relaciona
 
 Per últim, generarem un model per tal de predir els futurs resultats de supervivència per altres mostres amb els mateixos atributs:
 
+
 ```{r}
+
 library(randomForest)
+modelo <- randomForest(Survived ~ Pclass + Sex + Age + SibSp + Parch + Fare +Embarked , data=train,  importance=TRUE)
 
-modelo <- randomForest(as.factor(Survived) ~ Pclass + Sex + Age + SibSp + Parch + Fare +
-                                            Embarked + Cabin,
-                      data=train, 
-                      importance=TRUE, 
-                      ntree=2000)
-
-modelo
-``` 
+```
 
 # Representació dels resultats a partir de taules i gràfiques.
 
-Falta per fer
+A continuació extreurem del model les mesures "MeanDecreaseAccuracy" y "MeanDecreaseGini", que mesuren la importància de les variables en la classificació de les mostres:
 
-# Resolució del problema. 
+```{r}
+varImpPlot(modelo)
+```
+Podem veure que ambdúes mesures ponderen com a l'element més primordial el sexe, seguit de la tarifa, la clase i l'edad.
+
+Aquest model també ens permet veure l'error del model en funció dels arbres que s'utilitzen per crearlos:
+```{r}
+plot(modelo)
+```
+
+Per últim, veurem el model en sí, en el qual podrem trobar el error del model creat i la matriu de confusió en les dades de test, amb un resum de l'error per element resultant:
+
+```{r}
+modelo
+```
+
+# Resolució del problema.
 
 A partir dels resultats obtinguts, quines són les conclusions? Els resultats permeten respondre al problema?
+
+Com a conclusió, podem dir que en aquest dataset totes les varibables estàn relacionades amb el resultat final, per tant totes deuen ser presses en consideració per qualsevol model estadístic o predictiu que pretenga resoldre la qüestió de si un subjecte sobreviurà al accident del Titànic o no.
+
+A mes a mes, aquest dataset ens permet construir un model predictiu de tipus "RandomForest", el qual ens permet observar quines son les variables més influents en un resultat de predicció, confirmant les nostres sospites al graficar les relacions entre variables en el dataset, y la precissió que pot tenir aquest model amb les dades facilitades, que es situa sobre el 16.5%.
