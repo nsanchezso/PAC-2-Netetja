@@ -24,8 +24,9 @@ knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 
 # Introducció
 
-Les dades que utilitzarem per a la segona pràctica de l'assignatura: Tipologia i cicle de vida de les dades, son les dades del dataset Titanic de Kaggle (https://www.kaggle.com/c/titanic/data)
+Les dades que utilitzarem per a la segona pràctica de l'assignatura: Tipologia i cicle de vida de les dades, son les dades del dataset Titanic de Kaggle (https://www.kaggle.com/c/titanic/data).
 
+L'objectiu del present treball serà la netetja i l'anàlisi del dataset per arribar a conclusions sobre la influència de les diferents característiques descrites en ell sobre la supervivència dels individus en l'accident del Titànic, així com la creació d'un model predictiu que en base a aquestes característiques sigui capaç de preveure si l'individu sobreviuría o no a l'accident.
 
 
 ```{r}
